@@ -232,7 +232,6 @@ const GoogleDrawingManager = compose(
             newShape.sum = sum;
           }
         );
-        // Insert a vertex
         window.google.maps.event.addListener(
           newShape.getPath(),
           "insert_at",
@@ -241,7 +240,6 @@ const GoogleDrawingManager = compose(
             newShape.sum = sum;
           }
         );
-        // Remove a vertex
         window.google.maps.event.addListener(
           newShape.getPath(),
           "remove_at",
