@@ -1,0 +1,16 @@
+.colorButton {
+  width: 14px;
+  height: 14px;
+  font-size: 0;
+  margin: 2px;
+  float: left;
+  cursor: pointer;
+}
+
+.mapControlContainer {
+  display: flex;
+  width: 40%;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
