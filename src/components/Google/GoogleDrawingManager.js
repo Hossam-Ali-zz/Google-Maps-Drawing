@@ -6,8 +6,7 @@ import styles from "./styles.module.scss";
 
 const GoogleDrawingManager = compose(
   withProps({
-    googleMapURL:
-      "https://maps.googleapis.com/maps/api/js?key=AIzaSyCAPSpUDKJKWsyVP6Q9JPMyl3DG9weYplI&v=3.exp&libraries=geometry,drawing,places",
+    googleMapURL: `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAP_KEY}&v=3.exp&libraries=geometry,drawing,places`,
     loadingElement: <div id="1" style={{ height: `100%` }} />,
     containerElement: <div id="2" style={{ height: `400px` }} />,
     mapElement: <div id="3" style={{ height: `100%` }} />,
