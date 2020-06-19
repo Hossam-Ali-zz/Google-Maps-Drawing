@@ -1,225 +1,322 @@
-import React, { useState, useEffect } from "react";
+import React, { Component } from "react";
 import { compose, withProps } from "recompose";
 import { withScriptjs, withGoogleMap, GoogleMap } from "react-google-maps";
 import { DrawingManager } from "react-google-maps/lib/components/drawing/DrawingManager";
+import { v4 as uuidv4 } from "uuid";
 import styles from "./styles.module.scss";
 
-const GoogleDrawingManager = compose(
-  withProps({
-    googleMapURL: `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAP_KEY}&v=3.exp&libraries=geometry,drawing,places`,
-    loadingElement: <div id="1" style={{ height: `100%` }} />,
-    containerElement: <div id="2" style={{ height: `400px` }} />,
-    mapElement: <div id="3" style={{ height: `100%` }} />,
-  }),
-  withScriptjs,
-  withGoogleMap
-)(() => {
-  const [mapOverlay, setMapOverlay] = useState([]);
-  const [selectedShape, setSelectedShape] = useState(null);
-  const [allOverLays, setAllOverLays] = useState([]);
-  const [selectedColor, setSelectedColor] = useState("#1E90FF");
-  const colors = ["#1E90FF", "#FF1493", "#32CD32", "#FF8C00", "#4B0082"];
+class GoogleDrawingManager extends Component {
+  state = {
+    mapOverlay: [],
+    selectedShape: null,
+    allOverLays: [],
+    selectedColor: "#1E90FF",
+  };
 
-  useEffect(() => {
-    console.log("useEffect", selectedShape);
-  }, [selectedShape]);
-
-  const clearSelection = () => {
-    console.log("clearSelection", selectedShape);
+  clearSelection = () => {
+    const { selectedShape } = this.state;
     if (selectedShape) {
       if (!selectedShape.marker) {
-        console.log("Asdadasd");
         selectedShape.setEditable(false);
       }
-      setSelectedShape(null);
+      this.setState({
+        selectedShape: null,
+      });
     }
   };
 
-  const setSelection = (shape) => {
-    console.log("setSelection", shape, selectedShape);
-    clearSelection();
+  setSelection = (shape) => {
+    this.clearSelection();
     if (!shape.marker) {
       shape.setEditable(true);
     }
-    console.log("setSelection", shape, selectedShape);
-    setSelectedShape(shape);
+    this.setState({
+      selectedShape: shape,
+    });
   };
 
-  const deleteSelectedShape = () => {
-    console.log("deleteSelectedShape", selectedShape);
+  deleteSelectedShape = () => {
+    const { selectedShape, mapOverlay } = this.state;
     if (selectedShape) {
       selectedShape.setMap(null);
       const newShaped = mapOverlay.filter(
-        (shape) => shape.sum !== selectedShape.sum
+        (shape) => shape.id !== selectedShape.id
       );
-      setMapOverlay(newShaped);
+      this.setState({
+        mapOverlay: newShaped,
+      });
     }
   };
 
-  const deleteAllShapes = () => {
+  deleteAllShapes = () => {
+    const { allOverLays } = this.state;
     allOverLays.forEach((shape) => shape.setMap(null));
-    setAllOverLays([]);
-    setMapOverlay([]);
+    this.setState({
+      allOverLays: [],
+      mapOverlay: [],
+    });
   };
 
-  const updatePolygonShape = (overlay) => {
+  updatePolygonShape = (overlay, isEdit, id) => {
     const positionDetails = [];
-    let sum = 0;
+    const { mapOverlay, selectedShape } = this.state;
     overlay
       .getPath()
       .getArray()
       .forEach((position) => {
-        sum += position.lat() + position.lng();
         positionDetails.push({
           lat: position.lat(),
           lng: position.lng(),
         });
       });
-    setMapOverlay([
-      ...mapOverlay,
-      {
-        polygon: positionDetails,
-        overlay,
-        sum,
-      },
-    ]);
-    return sum;
+    if (isEdit) {
+      const index = mapOverlay.findIndex(
+        (item) => item.id === selectedShape.id
+      );
+      this.setState(({ mapOverlay }) => ({
+        mapOverlay: [
+          ...mapOverlay.slice(0, index),
+          {
+            ...mapOverlay[index],
+            polygon: positionDetails,
+            overlay,
+          },
+          ...mapOverlay.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState({
+        mapOverlay: [...mapOverlay, { polygon: positionDetails, overlay, id }],
+      });
+    }
   };
 
-  const updatePolylineShape = (overlay) => {
+  updatePolylineShape = (overlay, isEdit, id) => {
     const positionDetails = [];
-    let sum = 0;
+    const { mapOverlay, selectedShape } = this.state;
     overlay
       .getPath()
       .getArray()
       .forEach((position) => {
-        sum += position.lat() + position.lng();
         positionDetails.push({
           lat: position.lat(),
           lng: position.lng(),
         });
       });
-    setMapOverlay([
-      ...mapOverlay,
-      {
-        polyline: positionDetails,
-        overlay,
-        sum,
-      },
-    ]);
-    return sum;
+    if (isEdit) {
+      const index = mapOverlay.findIndex(
+        (item) => item.id === selectedShape.id
+      );
+      this.setState(({ mapOverlay }) => ({
+        mapOverlay: [
+          ...mapOverlay.slice(0, index),
+          {
+            ...mapOverlay[index],
+            polyline: positionDetails,
+            overlay,
+          },
+          ...mapOverlay.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState({
+        mapOverlay: [
+          ...mapOverlay,
+          {
+            polyline: positionDetails,
+            overlay,
+            id,
+          },
+        ],
+      });
+    }
   };
 
-  const updateCircleShape = (overlay) => {
+  updateCircleShape = (overlay, isEdit, id) => {
     const center = overlay.getBounds().getCenter();
     const radius = overlay.getRadius();
-    const sum = center.lat() + center.lng() + radius;
-    setMapOverlay([
-      ...mapOverlay,
-      {
-        overlay,
-        sum,
-        circle: [
+    const { mapOverlay, selectedShape } = this.state;
+    if (isEdit) {
+      const index = mapOverlay.findIndex(
+        (item) => item.id === selectedShape.id
+      );
+      this.setState(({ mapOverlay }) => ({
+        mapOverlay: [
+          ...mapOverlay.slice(0, index),
           {
-            lat: center.lat(),
-            lng: center.lng(),
+            ...mapOverlay[index],
+            circle: [
+              {
+                lat: center.lat(),
+                lng: center.lng(),
+              },
+              {
+                radius,
+              },
+            ],
+            overlay,
           },
+          ...mapOverlay.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState({
+        mapOverlay: [
+          ...mapOverlay,
           {
-            radius,
+            circle: [
+              {
+                lat: center.lat(),
+                lng: center.lng(),
+              },
+              {
+                radius,
+              },
+            ],
+            overlay,
+            id,
           },
         ],
-      },
-    ]);
-    return sum;
+      });
+    }
   };
 
-  const updateMarkerShape = (overlay) => {
-    const sum = overlay.getPosition().lat() + overlay.getPosition().lng();
-    setMapOverlay([
-      ...mapOverlay,
-      {
-        sum,
-        overlay,
-        marker: [
+  updateMarkerShape = (overlay, isEdit, id) => {
+    const { mapOverlay, selectedShape } = this.state;
+    if (isEdit) {
+      const index = mapOverlay.findIndex(
+        (item) => item.id === selectedShape.id
+      );
+      this.setState(({ mapOverlay }) => ({
+        mapOverlay: [
+          ...mapOverlay.slice(0, index),
           {
-            lat: overlay.getPosition().lat(),
-            lng: overlay.getPosition().lng(),
+            ...mapOverlay[index],
+            overlay,
+            marker: [
+              {
+                lat: overlay.getPosition().lat(),
+                lng: overlay.getPosition().lng(),
+              },
+            ],
+          },
+          ...mapOverlay.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState({
+        mapOverlay: [
+          ...mapOverlay,
+          {
+            id,
+            overlay,
+            marker: [
+              {
+                lat: overlay.getPosition().lat(),
+                lng: overlay.getPosition().lng(),
+              },
+            ],
           },
         ],
-      },
-    ]);
-    return sum;
+      });
+    }
   };
 
-  const updateRectangleShape = (overlay) => {
+  updateRectangleShape = (overlay, isEdit, id) => {
     const bounds = overlay.getBounds();
     const start = bounds.getNorthEast();
     const end = bounds.getSouthWest();
-    const sum = start.lat() + start.lng() + end.lat() + end.lng();
-    setMapOverlay([
-      ...mapOverlay,
-      {
-        overlay,
-        sum,
-        rectangle: [
+    const { mapOverlay, selectedShape } = this.state;
+    if (isEdit) {
+      const index = mapOverlay.findIndex(
+        (item) => item.id === selectedShape.id
+      );
+      this.setState(({ mapOverlay }) => ({
+        mapOverlay: [
+          ...mapOverlay.slice(0, index),
           {
-            lat: start.lat(),
-            lng: start.lng(),
+            ...mapOverlay[index],
+            overlay,
+            rectangle: [
+              {
+                lat: start.lat(),
+                lng: start.lng(),
+              },
+              {
+                lat: end.lat(),
+                lng: end.lng(),
+              },
+            ],
           },
+          ...mapOverlay.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState({
+        mapOverlay: [
+          ...mapOverlay,
           {
-            lat: end.lat(),
-            lng: end.lng(),
+            overlay,
+            id,
+            rectangle: [
+              {
+                lat: start.lat(),
+                lng: start.lng(),
+              },
+              {
+                lat: end.lat(),
+                lng: end.lng(),
+              },
+            ],
           },
         ],
-      },
-    ]);
-    return sum;
+      });
+    }
   };
 
-  const handleOnOverlayComplete = (e) => {
+  handleOnOverlayComplete = (e) => {
     const { overlay, type } = e;
-    setAllOverLays([...allOverLays, overlay]);
+    const { allOverLays } = this.state;
+    const id = uuidv4();
+    this.setState({
+      allOverLays: [...allOverLays, overlay],
+    });
     const newShape = overlay;
     newShape[type] = type;
-
-    let sum = 0;
     if (type === "polygon") {
-      sum = updatePolygonShape(overlay);
+      this.updatePolygonShape(overlay, false, id);
     } else if (type === "circle") {
-      sum = updateCircleShape(overlay);
+      this.updateCircleShape(overlay, false, id);
     } else if (type === "marker") {
-      sum = updateMarkerShape(overlay);
+      this.updateMarkerShape(overlay, false, id);
     } else if (type === "rectangle") {
-      sum = updateRectangleShape(overlay);
+      this.updateRectangleShape(overlay, false, id);
     } else if (type === "polyline") {
-      sum = updatePolylineShape(overlay);
+      this.updatePolylineShape(overlay, false, id);
     }
-    newShape.sum = sum;
+    newShape.id = id;
     window.google.maps.event.addListener(newShape, "click", () => {
-      setSelection(newShape);
+      this.setSelection(newShape);
       if (type === "polygon") {
         window.google.maps.event.addListener(
           newShape.getPath(),
           "set_at",
           () => {
-            sum = updatePolygonShape(overlay);
-            newShape.sum = sum;
+            this.updatePolygonShape(overlay, true, id);
           }
         );
         window.google.maps.event.addListener(
           newShape.getPath(),
           "remove_at",
           () => {
-            sum = updatePolygonShape(overlay);
-            newShape.sum = sum;
+            this.updatePolygonShape(overlay, true, id);
           }
         );
         window.google.maps.event.addListener(
           newShape.getPath(),
           "insert_at",
           () => {
-            sum = updatePolygonShape(overlay);
-            newShape.sum = sum;
+            this.updatePolygonShape(overlay, true, id);
           }
         );
       } else if (type === "polyline") {
@@ -227,53 +324,45 @@ const GoogleDrawingManager = compose(
           newShape.getPath(),
           "set_at",
           () => {
-            sum = updatePolylineShape(overlay);
-            newShape.sum = sum;
+            this.updatePolylineShape(overlay, true, id);
           }
         );
         window.google.maps.event.addListener(
           newShape.getPath(),
           "insert_at",
           () => {
-            sum = updatePolylineShape(overlay);
-            newShape.sum = sum;
+            this.updatePolylineShape(overlay, true, id);
           }
         );
         window.google.maps.event.addListener(
           newShape.getPath(),
           "remove_at",
           () => {
-            sum = updatePolylineShape(overlay);
-            newShape.sum = sum;
+            this.updatePolylineShape(overlay, true, id);
           }
         );
       } else if (type === "circle") {
         window.google.maps.event.addListener(newShape, "center_changed", () => {
-          sum = updateCircleShape(overlay);
-          newShape.sum = sum;
+          this.updateCircleShape(overlay, true, id);
         });
         window.google.maps.event.addListener(newShape, "radius_changed", () => {
-          sum = updateCircleShape(overlay);
-          newShape.sum = sum;
+          this.updateCircleShape(overlay, true, id);
         });
       } else if (type === "rectangle") {
         window.google.maps.event.addListener(newShape, "bounds_changed", () => {
-          sum = updateRectangleShape(overlay);
-          newShape.sum = sum;
+          this.updateRectangleShape(overlay, true, id);
         });
       }
     });
     // setSelection(newShape);
   };
 
-  return (
-    <GoogleMap
-      defaultZoom={3}
-      onClick={clearSelection}
-      defaultCenter={new window.google.maps.LatLng(0, 180)}
-    >
+  GoogleDrawing = () => {
+    const { selectedColor } = this.state;
+    console.log("GoogleDrawing", selectedColor);
+    return (
       <DrawingManager
-        onOverlayComplete={(e) => handleOnOverlayComplete(e)}
+        onOverlayComplete={(e) => this.handleOnOverlayComplete(e)}
         defaultOptions={{
           drawingControl: true,
           drawingControlOptions: {
@@ -303,41 +392,64 @@ const GoogleDrawingManager = compose(
           },
         }}
       />
-      <div className={styles.mapControlContainer}>
-        <button
-          style={{ float: "left" }}
-          type="button"
-          onClick={() => deleteSelectedShape()}
-        >
-          Delete Selected Shape
-        </button>
-        <button
-          style={{ float: "left" }}
-          type="button"
-          onClick={() => deleteAllShapes()}
-        >
-          Delete All Shapes
-        </button>
-        <div>
-          {colors.map((color, index) => (
-            <span
-              key={index}
-              className={styles.colorButton}
-              onClick={() => setSelectedColor(color)}
-              style={{
-                backgroundColor: color,
-                border:
-                  color === selectedColor
-                    ? "2px solid rgb(119, 136, 153)"
-                    : "2px solid rgb(255, 255, 255)",
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      {console.log("map", mapOverlay)}
-    </GoogleMap>
-  );
-});
+    );
+  };
 
-export default GoogleDrawingManager;
+  render() {
+    const colors = ["#1E90FF", "#FF1493", "#32CD32", "#FF8C00", "#4B0082"];
+    const { selectedColor, mapOverlay } = this.state;
+    return (
+      <GoogleMap
+        defaultZoom={3}
+        onClick={this.clearSelection}
+        defaultCenter={new window.google.maps.LatLng(0, 180)}
+      >
+        {this.GoogleDrawing(selectedColor)}
+        <div className={styles.mapControlContainer}>
+          <button
+            style={{ float: "left" }}
+            type="button"
+            onClick={() => this.deleteSelectedShape()}
+          >
+            Delete Selected Shape
+          </button>
+          <button
+            style={{ float: "left" }}
+            type="button"
+            onClick={() => this.deleteAllShapes()}
+          >
+            Delete All Shapes
+          </button>
+          <div>
+            {colors.map((color, index) => (
+              <span
+                key={index}
+                className={styles.colorButton}
+                onClick={() => this.setState({ selectedColor: color })}
+                style={{
+                  backgroundColor: color,
+                  border:
+                    color === selectedColor
+                      ? "2px solid rgb(119, 136, 153)"
+                      : "2px solid rgb(255, 255, 255)",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        {console.log("map", mapOverlay)}
+      </GoogleMap>
+    );
+  }
+}
+
+export default compose(
+  withProps({
+    googleMapURL: `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAP_KEY}&v=3.exp&libraries=geometry,drawing,places`,
+    loadingElement: <div id="1" style={{ height: `100%` }} />,
+    containerElement: <div id="2" style={{ height: `400px` }} />,
+    mapElement: <div id="3" style={{ height: `100%` }} />,
+  }),
+  withScriptjs,
+  withGoogleMap
+)(GoogleDrawingManager);
