@@ -1,6 +1,11 @@
 import React, { Component } from "react";
 import { compose, withProps } from "recompose";
-import { withScriptjs, withGoogleMap, GoogleMap } from "react-google-maps";
+import {
+  withScriptjs,
+  withGoogleMap,
+  GoogleMap,
+  Circle,
+} from "react-google-maps";
 import { DrawingManager } from "react-google-maps/lib/components/drawing/DrawingManager";
 import { v4 as uuidv4 } from "uuid";
 import styles from "./styles.module.scss";
@@ -11,7 +16,27 @@ class GoogleDrawingManager extends Component {
     selectedShape: null,
     allOverLays: [],
     selectedColor: "#1E90FF",
+    preShaped: [],
+    selectedId: null,
   };
+
+  componentDidMount() {
+    const { preShaped } = this.state;
+    this.setState({
+      preShaped: [
+        ...preShaped,
+        {
+          type: "circle",
+          center: { lat: -18.142, lng: 178.431 },
+          radius: 1000000,
+          color: "#FF8C00",
+          editable: false,
+          id: uuidv4(),
+          visible: true,
+        },
+      ],
+    });
+  }
 
   clearSelection = () => {
     const { selectedShape } = this.state;
@@ -36,7 +61,7 @@ class GoogleDrawingManager extends Component {
   };
 
   deleteSelectedShape = () => {
-    const { selectedShape, mapOverlay } = this.state;
+    const { selectedShape, mapOverlay, shape, selectedId } = this.state;
     if (selectedShape) {
       selectedShape.setMap(null);
       const newShaped = mapOverlay.filter(
@@ -45,6 +70,18 @@ class GoogleDrawingManager extends Component {
       this.setState({
         mapOverlay: newShaped,
       });
+    } else if (shape.length > 0) {
+      const index = shape.findIndex((sh) => sh.id === selectedId);
+      this.setState(({ shape }) => ({
+        shape: [
+          ...shape.slice(0, index),
+          {
+            ...shape[index],
+            visible: false,
+          },
+          ...shape.slice(index + 1),
+        ],
+      }));
     }
   };
 
@@ -54,6 +91,7 @@ class GoogleDrawingManager extends Component {
     this.setState({
       allOverLays: [],
       mapOverlay: [],
+      preShaped: [],
     });
   };
 
@@ -294,6 +332,7 @@ class GoogleDrawingManager extends Component {
     } else if (type === "polyline") {
       this.updatePolylineShape(overlay, false, id);
     }
+
     newShape.id = id;
     window.google.maps.event.addListener(newShape, "click", () => {
       this.setSelection(newShape);
@@ -354,7 +393,6 @@ class GoogleDrawingManager extends Component {
         });
       }
     });
-    // setSelection(newShape);
   };
 
   GoogleDrawing = () => {
@@ -397,19 +435,51 @@ class GoogleDrawingManager extends Component {
 
   render() {
     const colors = ["#1E90FF", "#FF1493", "#32CD32", "#FF8C00", "#4B0082"];
-    const { selectedColor, mapOverlay } = this.state;
+    const { selectedColor, mapOverlay, preShaped, selectedId } = this.state;
     return (
       <GoogleMap
         defaultZoom={3}
         onClick={this.clearSelection}
         defaultCenter={new window.google.maps.LatLng(0, 180)}
       >
-        {this.GoogleDrawing(selectedColor)}
+        {this.GoogleDrawing()}
+        {preShaped.map((item, index) => {
+          if (item.type === "circle") {
+            return (
+              <Circle
+                key={index}
+                radius={item.radius}
+                center={item.center}
+                options={{
+                  fillColor: item.color,
+                  draggable: true,
+                  editable: item.editable,
+                  visible: item.visible,
+                }}
+                onClick={() => {
+                  const index = preShaped.findIndex((sh) => sh.id === item.id);
+                  this.setState(({ preShaped }) => ({
+                    preShaped: [
+                      ...preShaped.slice(0, index),
+                      {
+                        ...preShaped[index],
+                        editable: true,
+                      },
+                      ...preShaped.slice(index + 1),
+                    ],
+                    selectedId: item.id,
+                  }));
+                }}
+              />
+            );
+          }
+          return null;
+        })}
         <div className={styles.mapControlContainer}>
           <button
             style={{ float: "left" }}
             type="button"
-            onClick={() => this.deleteSelectedShape()}
+            onClick={() => this.deleteSelectedShape(selectedId)}
           >
             Delete Selected Shape
           </button>
