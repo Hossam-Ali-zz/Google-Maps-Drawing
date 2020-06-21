@@ -61,7 +61,7 @@ class GoogleDrawingManager extends Component {
   };
 
   deleteSelectedShape = () => {
-    const { selectedShape, mapOverlay, shape, selectedId } = this.state;
+    const { selectedShape, mapOverlay, preShaped, selectedId } = this.state;
     if (selectedShape) {
       selectedShape.setMap(null);
       const newShaped = mapOverlay.filter(
@@ -70,16 +70,16 @@ class GoogleDrawingManager extends Component {
       this.setState({
         mapOverlay: newShaped,
       });
-    } else if (shape.length > 0) {
-      const index = shape.findIndex((sh) => sh.id === selectedId);
-      this.setState(({ shape }) => ({
-        shape: [
-          ...shape.slice(0, index),
+    } else if (preShaped.length > 0) {
+      const index = preShaped.findIndex((sh) => sh.id === selectedId);
+      this.setState(({ preShaped }) => ({
+        preShaped: [
+          ...preShaped.slice(0, index),
           {
-            ...shape[index],
+            ...preShaped[index],
             visible: false,
           },
-          ...shape.slice(index + 1),
+          ...preShaped.slice(index + 1),
         ],
       }));
     }
