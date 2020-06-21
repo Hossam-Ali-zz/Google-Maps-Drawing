@@ -99,7 +99,7 @@ class GoogleDrawingManager extends Component {
 
   updatePolygonShape = (overlay, isEdit, id) => {
     const positionDetails = [];
-    const { mapOverlay, selectedShape } = this.state;
+    const { mapOverlay, selectedShape, selectedColor } = this.state;
     overlay
       .getPath()
       .getArray()
@@ -126,14 +126,17 @@ class GoogleDrawingManager extends Component {
       }));
     } else {
       this.setState({
-        mapOverlay: [...mapOverlay, { polygon: positionDetails, overlay, id }],
+        mapOverlay: [
+          ...mapOverlay,
+          { polygon: positionDetails, overlay, id, selectedColor },
+        ],
       });
     }
   };
 
   updatePolylineShape = (overlay, isEdit, id) => {
     const positionDetails = [];
-    const { mapOverlay, selectedShape } = this.state;
+    const { mapOverlay, selectedShape, selectedColor } = this.state;
     overlay
       .getPath()
       .getArray()
@@ -166,6 +169,7 @@ class GoogleDrawingManager extends Component {
             polyline: positionDetails,
             overlay,
             id,
+            selectedColor,
           },
         ],
       });
@@ -175,7 +179,7 @@ class GoogleDrawingManager extends Component {
   updateCircleShape = (overlay, isEdit, id) => {
     const center = overlay.getBounds().getCenter();
     const radius = overlay.getRadius();
-    const { mapOverlay, selectedShape } = this.state;
+    const { mapOverlay, selectedShape, selectedColor } = this.state;
     if (isEdit) {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
@@ -215,6 +219,7 @@ class GoogleDrawingManager extends Component {
             ],
             overlay,
             id,
+            selectedColor,
           },
         ],
       });
@@ -266,7 +271,7 @@ class GoogleDrawingManager extends Component {
     const bounds = overlay.getBounds();
     const start = bounds.getNorthEast();
     const end = bounds.getSouthWest();
-    const { mapOverlay, selectedShape } = this.state;
+    const { mapOverlay, selectedShape, selectedColor } = this.state;
     if (isEdit) {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
@@ -298,6 +303,7 @@ class GoogleDrawingManager extends Component {
           {
             overlay,
             id,
+            selectedColor,
             rectangle: [
               {
                 lat: start.lat(),
@@ -397,43 +403,63 @@ class GoogleDrawingManager extends Component {
     });
   };
 
-  GoogleDrawing = () => {
-    const { selectedColor } = this.state;
-    console.log("GoogleDrawing", selectedColor);
-    return (
-      <DrawingManager
-        onOverlayComplete={(e) => this.handleOnOverlayComplete(e)}
-        defaultOptions={{
-          drawingControl: true,
-          drawingControlOptions: {
-            position: window.google.maps.ControlPosition.RIGHT_TOP,
-            drawingModes: [
-              "marker",
-              "circle",
-              "polygon",
-              "rectangle",
-              "polyline",
-            ],
-          },
-          polylineOptions: {
-            fillColor: selectedColor,
-          },
-          circleOptions: {
-            fillColor: selectedColor,
-            fillOpacity: 0.5,
-            strokeWeight: 3,
-            zIndex: 1,
-          },
-          polygonOptions: {
-            fillColor: selectedColor,
-          },
-          rectangleOptions: {
-            fillColor: selectedColor,
-          },
-        }}
-      />
-    );
+  updateRadius() {
+    const updatedRadius = this.getRadius();
+    console.log("updatedRadius", updatedRadius);
+    // todo
+    this.updateCircleState(false, updatedRadius);
+  }
+
+  updateCenter() {
+    const center = this.getBounds().getCenter();
+    console.log("updateCenter", center.lat(), center.lng());
+        // todo
+    this.updateCircleState(true, center);
+  }
+
+  handleCircleClicked = (item) => {
+    const { preShaped } = this.state;
+    const index = preShaped.findIndex((sh) => sh.id === item.id);
+    this.setState(({ preShaped }) => ({
+      preShaped: [
+        ...preShaped.slice(0, index),
+        {
+          ...preShaped[index],
+          editable: !preShaped[index].editable,
+        },
+        ...preShaped.slice(index + 1),
+      ],
+      selectedId: item.id,
+    }));
   };
+
+  updateCircleState(isCenter, value) {
+    const { selectedId, preShaped } = this.state;
+    const index = preShaped.findIndex((sh) => sh.id === selectedId);
+    if (isCenter) {
+      this.setState(({ preShaped }) => ({
+        preShaped: [
+          ...preShaped.slice(0, index),
+          {
+            ...preShaped[index],
+            center: { lat: value.lat(), lng: value.lng() },
+          },
+          ...preShaped.slice(index + 1),
+        ],
+      }));
+    } else {
+      this.setState(({ preShaped }) => ({
+        preShaped: [
+          ...preShaped.slice(0, index),
+          {
+            ...preShaped[index],
+            radius: value,
+          },
+          ...preShaped.slice(index + 1),
+        ],
+      }));
+    }
+  }
 
   render() {
     const colors = ["#1E90FF", "#FF1493", "#32CD32", "#FF8C00", "#4B0082"];
@@ -444,7 +470,37 @@ class GoogleDrawingManager extends Component {
         onClick={this.clearSelection}
         defaultCenter={new window.google.maps.LatLng(0, 180)}
       >
-        {this.GoogleDrawing()}
+        <DrawingManager
+          onOverlayComplete={(e) => this.handleOnOverlayComplete(e)}
+          defaultOptions={{
+            drawingControl: true,
+            drawingControlOptions: {
+              position: window.google.maps.ControlPosition.RIGHT_TOP,
+              drawingModes: [
+                "marker",
+                "circle",
+                "polygon",
+                "rectangle",
+                "polyline",
+              ],
+            },
+            polylineOptions: {
+              fillColor: selectedColor,
+            },
+            circleOptions: {
+              fillColor: selectedColor,
+              fillOpacity: 0.5,
+              strokeWeight: 3,
+              zIndex: 1,
+            },
+            polygonOptions: {
+              fillColor: selectedColor,
+            },
+            rectangleOptions: {
+              fillColor: selectedColor,
+            },
+          }}
+        />
         {preShaped.map((item, index) => {
           if (item.type === "circle") {
             return (
@@ -454,24 +510,12 @@ class GoogleDrawingManager extends Component {
                 center={item.center}
                 options={{
                   fillColor: item.color,
-                  draggable: true,
                   editable: item.editable,
                   visible: item.visible,
                 }}
-                onClick={() => {
-                  const index = preShaped.findIndex((sh) => sh.id === item.id);
-                  this.setState(({ preShaped }) => ({
-                    preShaped: [
-                      ...preShaped.slice(0, index),
-                      {
-                        ...preShaped[index],
-                        editable: !preShaped[index].editable,
-                      },
-                      ...preShaped.slice(index + 1),
-                    ],
-                    selectedId: item.id,
-                  }));
-                }}
+                onRadiusChanged={this.updateRadius}
+                onCenterChanged={this.updateCenter}
+                onClick={() => this.handleCircleClicked(item)}
               />
             );
           }
@@ -509,7 +553,7 @@ class GoogleDrawingManager extends Component {
             ))}
           </div>
         </div>
-        {console.log("map", mapOverlay)}
+        {console.log("map", mapOverlay, preShaped)}
       </GoogleMap>
     );
   }
