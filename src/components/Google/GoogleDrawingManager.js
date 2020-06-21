@@ -72,16 +72,18 @@ class GoogleDrawingManager extends Component {
       });
     } else if (preShaped.length > 0) {
       const index = preShaped.findIndex((sh) => sh.id === selectedId);
-      this.setState(({ preShaped }) => ({
-        preShaped: [
-          ...preShaped.slice(0, index),
-          {
-            ...preShaped[index],
-            visible: false,
-          },
-          ...preShaped.slice(index + 1),
-        ],
-      }));
+      if (preShaped[index].editable) {
+        this.setState(({ preShaped }) => ({
+          preShaped: [
+            ...preShaped.slice(0, index),
+            {
+              ...preShaped[index],
+              visible: false,
+            },
+            ...preShaped.slice(index + 1),
+          ],
+        }));
+      }
     }
   };
 
@@ -463,7 +465,7 @@ class GoogleDrawingManager extends Component {
                       ...preShaped.slice(0, index),
                       {
                         ...preShaped[index],
-                        editable: true,
+                        editable: !preShaped[index].editable,
                       },
                       ...preShaped.slice(index + 1),
                     ],
