@@ -340,7 +340,6 @@ class GoogleDrawingManager extends Component {
     } else if (type === "polyline") {
       this.updatePolylineShape(overlay, false, id);
     }
-
     newShape.id = id;
     window.google.maps.event.addListener(newShape, "click", () => {
       this.setSelection(newShape);
@@ -403,19 +402,15 @@ class GoogleDrawingManager extends Component {
     });
   };
 
-  updateRadius() {
-    const updatedRadius = this.getRadius();
-    console.log("updatedRadius", updatedRadius);
-    // todo
+  updateRadius = () => {
+    const updatedRadius = this.map.getRadius();
     this.updateCircleState(false, updatedRadius);
-  }
+  };
 
-  updateCenter() {
-    const center = this.getBounds().getCenter();
-    console.log("updateCenter", center.lat(), center.lng());
-        // todo
+  updateCenter = () => {
+    const center = this.map.getBounds().getCenter();
     this.updateCircleState(true, center);
-  }
+  };
 
   handleCircleClicked = (item) => {
     const { preShaped } = this.state;
@@ -436,29 +431,22 @@ class GoogleDrawingManager extends Component {
   updateCircleState(isCenter, value) {
     const { selectedId, preShaped } = this.state;
     const index = preShaped.findIndex((sh) => sh.id === selectedId);
-    if (isCenter) {
-      this.setState(({ preShaped }) => ({
-        preShaped: [
-          ...preShaped.slice(0, index),
-          {
-            ...preShaped[index],
-            center: { lat: value.lat(), lng: value.lng() },
-          },
-          ...preShaped.slice(index + 1),
-        ],
-      }));
-    } else {
-      this.setState(({ preShaped }) => ({
-        preShaped: [
-          ...preShaped.slice(0, index),
-          {
-            ...preShaped[index],
-            radius: value,
-          },
-          ...preShaped.slice(index + 1),
-        ],
-      }));
-    }
+    this.setState(({ preShaped }) => ({
+      preShaped: [
+        ...preShaped.slice(0, index),
+        {
+          ...preShaped[index],
+          ...(isCenter
+            ? { center: { lat: value.lat(), lng: value.lng() } }
+            : { radius: value }),
+        },
+        ...preShaped.slice(index + 1),
+      ],
+    }));
+  }
+
+  mapMounted(ref) {
+    this.map = ref;
   }
 
   render() {
@@ -505,6 +493,7 @@ class GoogleDrawingManager extends Component {
           if (item.type === "circle") {
             return (
               <Circle
+                ref={this.mapMounted.bind(this)}
                 key={index}
                 radius={item.radius}
                 center={item.center}
@@ -513,8 +502,8 @@ class GoogleDrawingManager extends Component {
                   editable: item.editable,
                   visible: item.visible,
                 }}
-                onRadiusChanged={this.updateRadius}
-                onCenterChanged={this.updateCenter}
+                onRadiusChanged={() => this.updateRadius()}
+                onCenterChanged={() => this.updateCenter()}
                 onClick={() => this.handleCircleClicked(item)}
               />
             );
@@ -558,7 +547,6 @@ class GoogleDrawingManager extends Component {
     );
   }
 }
-
 export default compose(
   withProps({
     googleMapURL: `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAP_KEY}&v=3.exp&libraries=geometry,drawing,places`,
