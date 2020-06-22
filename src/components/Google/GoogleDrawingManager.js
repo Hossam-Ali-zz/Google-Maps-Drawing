@@ -1,13 +1,13 @@
 import React, { Component } from "react";
 import { compose, withProps } from "recompose";
+import { DrawingManager } from "react-google-maps/lib/components/drawing/DrawingManager";
+import { v4 as uuidv4 } from "uuid";
 import {
   withScriptjs,
   withGoogleMap,
   GoogleMap,
   Circle,
 } from "react-google-maps";
-import { DrawingManager } from "react-google-maps/lib/components/drawing/DrawingManager";
-import { v4 as uuidv4 } from "uuid";
 import styles from "./styles.module.scss";
 
 class GoogleDrawingManager extends Component {
@@ -34,6 +34,15 @@ class GoogleDrawingManager extends Component {
           id: uuidv4(),
           visible: true,
         },
+        {
+          type: "circle",
+          center: { lat: -18.142, lng: 200.431 },
+          radius: 1000000,
+          color: "#FF8C00",
+          editable: false,
+          id: uuidv4(),
+          visible: true,
+        },
       ],
     });
   }
@@ -51,12 +60,16 @@ class GoogleDrawingManager extends Component {
   };
 
   setSelection = (shape) => {
+    const { preShaped } = this.state;
     this.clearSelection();
     if (!shape.marker) {
       shape.setEditable(true);
     }
+    const newShaped = [...preShaped];
+    newShaped.forEach((item) => (item.editable = false));
     this.setState({
       selectedShape: shape,
+      preShaped: newShaped,
     });
   };
 
@@ -73,16 +86,9 @@ class GoogleDrawingManager extends Component {
     } else if (preShaped.length > 0) {
       const index = preShaped.findIndex((sh) => sh.id === selectedId);
       if (preShaped[index].editable) {
-        this.setState(({ preShaped }) => ({
-          preShaped: [
-            ...preShaped.slice(0, index),
-            {
-              ...preShaped[index],
-              visible: false,
-            },
-            ...preShaped.slice(index + 1),
-          ],
-        }));
+        const newPreShaped = [...preShaped];
+        newPreShaped[index].visible = false;
+        this.setState({ preShaped: newPreShaped });
       }
     }
   };
@@ -113,17 +119,10 @@ class GoogleDrawingManager extends Component {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
       );
-      this.setState(({ mapOverlay }) => ({
-        mapOverlay: [
-          ...mapOverlay.slice(0, index),
-          {
-            ...mapOverlay[index],
-            polygon: positionDetails,
-            overlay,
-          },
-          ...mapOverlay.slice(index + 1),
-        ],
-      }));
+      const newMapOverlay = [...mapOverlay];
+      newMapOverlay[index].polygon = positionDetails;
+      newMapOverlay[index].overlay = overlay;
+      this.setState({ mapOverlay: newMapOverlay });
     } else {
       this.setState({
         mapOverlay: [
@@ -150,17 +149,10 @@ class GoogleDrawingManager extends Component {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
       );
-      this.setState(({ mapOverlay }) => ({
-        mapOverlay: [
-          ...mapOverlay.slice(0, index),
-          {
-            ...mapOverlay[index],
-            polyline: positionDetails,
-            overlay,
-          },
-          ...mapOverlay.slice(index + 1),
-        ],
-      }));
+      const newMapOverlay = [...mapOverlay];
+      newMapOverlay[index].polyline = positionDetails;
+      newMapOverlay[index].overlay = overlay;
+      this.setState({ mapOverlay: newMapOverlay });
     } else {
       this.setState({
         mapOverlay: [
@@ -184,25 +176,15 @@ class GoogleDrawingManager extends Component {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
       );
-      this.setState(({ mapOverlay }) => ({
-        mapOverlay: [
-          ...mapOverlay.slice(0, index),
-          {
-            ...mapOverlay[index],
-            circle: [
-              {
-                lat: center.lat(),
-                lng: center.lng(),
-              },
-              {
-                radius,
-              },
-            ],
-            overlay,
-          },
-          ...mapOverlay.slice(index + 1),
-        ],
-      }));
+      const newMapOverlay = [...mapOverlay];
+      newMapOverlay[index].circle = [
+        {
+          lat: center.lat(),
+          lng: center.lng(),
+        },
+      ];
+      newMapOverlay[index].radius = radius;
+      this.setState({ mapOverlay: newMapOverlay });
     } else {
       this.setState({
         mapOverlay: [
@@ -232,22 +214,15 @@ class GoogleDrawingManager extends Component {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
       );
-      this.setState(({ mapOverlay }) => ({
-        mapOverlay: [
-          ...mapOverlay.slice(0, index),
-          {
-            ...mapOverlay[index],
-            overlay,
-            marker: [
-              {
-                lat: overlay.getPosition().lat(),
-                lng: overlay.getPosition().lng(),
-              },
-            ],
-          },
-          ...mapOverlay.slice(index + 1),
-        ],
-      }));
+      const newMapOverlay = [...mapOverlay];
+      newMapOverlay[index].marker = [
+        {
+          lat: overlay.getPosition().lat(),
+          lng: overlay.getPosition().lng(),
+        },
+      ];
+      newMapOverlay[index].overlay = overlay;
+      this.setState({ mapOverlay: newMapOverlay });
     } else {
       this.setState({
         mapOverlay: [
@@ -276,26 +251,19 @@ class GoogleDrawingManager extends Component {
       const index = mapOverlay.findIndex(
         (item) => item.id === selectedShape.id
       );
-      this.setState(({ mapOverlay }) => ({
-        mapOverlay: [
-          ...mapOverlay.slice(0, index),
-          {
-            ...mapOverlay[index],
-            overlay,
-            rectangle: [
-              {
-                lat: start.lat(),
-                lng: start.lng(),
-              },
-              {
-                lat: end.lat(),
-                lng: end.lng(),
-              },
-            ],
-          },
-          ...mapOverlay.slice(index + 1),
-        ],
-      }));
+      const newMapOverlay = [...mapOverlay];
+      newMapOverlay[index].rectangle = [
+        {
+          lat: start.lat(),
+          lng: start.lng(),
+        },
+        {
+          lat: end.lat(),
+          lng: end.lng(),
+        },
+      ];
+      newMapOverlay[index].overlay = overlay;
+      this.setState({ mapOverlay: newMapOverlay });
     } else {
       this.setState({
         mapOverlay: [
@@ -412,37 +380,26 @@ class GoogleDrawingManager extends Component {
     this.updateCircleState(true, center);
   };
 
-  handleCircleClicked = (item) => {
+  handleCircleClicked = (id) => {
     const { preShaped } = this.state;
-    const index = preShaped.findIndex((sh) => sh.id === item.id);
-    this.setState(({ preShaped }) => ({
-      preShaped: [
-        ...preShaped.slice(0, index),
-        {
-          ...preShaped[index],
-          editable: !preShaped[index].editable,
-        },
-        ...preShaped.slice(index + 1),
-      ],
-      selectedId: item.id,
-    }));
+    const newShaped = [...preShaped];
+    const index = preShaped.findIndex((sh) => sh.id === id);
+    const newPreShaped = [...preShaped];
+    newShaped.forEach((item) => (item.editable = false));
+    this.setState({ preShaped: newShaped });
+    newPreShaped[index].editable = !preShaped[index].editable;
+    this.clearSelection();
+    this.setState({ preShaped: newPreShaped, selectedId: id });
   };
 
   updateCircleState(isCenter, value) {
     const { selectedId, preShaped } = this.state;
     const index = preShaped.findIndex((sh) => sh.id === selectedId);
-    this.setState(({ preShaped }) => ({
-      preShaped: [
-        ...preShaped.slice(0, index),
-        {
-          ...preShaped[index],
-          ...(isCenter
-            ? { center: { lat: value.lat(), lng: value.lng() } }
-            : { radius: value }),
-        },
-        ...preShaped.slice(index + 1),
-      ],
-    }));
+    const newPreShaped = [...preShaped];
+    isCenter
+      ? (newPreShaped[index].center = { lat: value.lat(), lng: value.lng() })
+      : (newPreShaped[index].radius = value);
+    this.setState({ preShaped: newPreShaped });
   }
 
   mapMounted(ref) {
@@ -489,12 +446,12 @@ class GoogleDrawingManager extends Component {
             },
           }}
         />
-        {preShaped.map((item, index) => {
+        {preShaped.map((item) => {
           if (item.type === "circle") {
             return (
               <Circle
                 ref={this.mapMounted.bind(this)}
-                key={index}
+                key={item.id}
                 radius={item.radius}
                 center={item.center}
                 options={{
@@ -504,7 +461,7 @@ class GoogleDrawingManager extends Component {
                 }}
                 onRadiusChanged={() => this.updateRadius()}
                 onCenterChanged={() => this.updateCenter()}
-                onClick={() => this.handleCircleClicked(item)}
+                onClick={() => this.handleCircleClicked(item.id)}
               />
             );
           }
